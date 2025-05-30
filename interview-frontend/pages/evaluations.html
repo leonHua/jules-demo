@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>面试评价管理</title>
+    <link rel="stylesheet" href="../layui/css/layui.css" media="all">
+    <style>
+        body { padding: 15px; }
+        .layui-form-label { width: 100px; }
+        .layui-input-block { margin-left: 130px; }
+        .layui-form-item .layui-input-inline { width: 200px; }
+        .layui-form-select dl { z-index: 9999; } /* Ensure dropdown is on top */
+    </style>
+</head>
+<body>
+    <fieldset class="layui-elem-field layui-field-title" style="margin-top: 20px;">
+        <legend>面试评价管理</legend>
+    </fieldset>
+
+    <!-- Search Form -->
+    <form class="layui-form" lay-filter="searchFormEval" style="margin-bottom: 10px;">
+        <div class="layui-form-item">
+            <div class="layui-inline">
+                <label class="layui-form-label">关联预约ID</label>
+                <div class="layui-input-inline">
+                    <input type="text" name="appointmentIdSearch" placeholder="请输入预约ID" autocomplete="off" class="layui-input">
+                </div>
+            </div>
+            <div class="layui-inline">
+                <button class="layui-btn" lay-submit lay-filter="searchBtnEval">搜索</button>
+                <button type="button" class="layui-btn layui-btn-normal" id="addEvaluationBtn">新增评价</button>
+            </div>
+        </div>
+    </form>
+
+    <!-- Layui Table -->
+    <table id="evaluationTable" lay-filter="evaluationTableFilter"></table>
+
+    <!-- Hidden Modal Form for Add/Edit -->
+    <div id="evaluationFormModal" style="display: none; padding: 20px;">
+        <form class="layui-form" lay-filter="evaluationForm">
+            <input type="hidden" name="id">
+            <div class="layui-form-item">
+                <label class="layui-form-label">关联预约ID</label>
+                <div class="layui-input-block">
+                    <select name="appointmentId" id="appointmentIdSelect" lay-verify="required" lay-search>
+                        <option value="">请选择或搜索预约ID</option>
+                        <!-- Options will be populated by JavaScript -->
+                    </select>
+                </div>
+            </div>
+            <div class="layui-form-item layui-form-text">
+                <label class="layui-form-label">评价内容</label>
+                <div class="layui-input-block">
+                    <textarea name="interviewerComments" required lay-verify="required" placeholder="请输入评价内容" class="layui-textarea"></textarea>
+                </div>
+            </div>
+            <div class="layui-form-item">
+                <label class="layui-form-label">评分</label>
+                <div class="layui-input-block">
+                    <select name="rating" lay-verify="required">
+                        <option value="">请选择评分</option>
+                        <option value="1">1星</option>
+                        <option value="2">2星</option>
+                        <option value="3">3星</option>
+                        <option value="4">4星</option>
+                        <option value="5">5星</option>
+                    </select>
+                </div>
+            </div>
+            <div class="layui-form-item">
+                <label class="layui-form-label">评价结果</label>
+                <div class="layui-input-block">
+                    <select name="result" lay-verify="required">
+                        <option value="Pending">待定</option>
+                        <option value="Hired">录用</option>
+                        <option value="Rejected">淘汰</option>
+                    </select>
+                </div>
+            </div>
+            <!-- evaluationTime is set by backend -->
+            <div class="layui-form-item" style="margin-top: 20px; text-align: center;">
+                <button class="layui-btn" lay-submit lay-filter="submitEvaluationForm">提交</button>
+                 <button type="button" class="layui-btn layui-btn-primary" id="cancelEvalFormBtn">取消</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Table Toolbar Script -->
+    <script type="text/html" id="evalTableToolbar">
+        <a class="layui-btn layui-btn-xs" lay-event="edit">编辑</a>
+        <a class="layui-btn layui-btn-danger layui-btn-xs" lay-event="del">删除</a>
+    </script>
+
+<script src="../layui/layui.js"></script>
+<script>
+layui.use(['table', 'form', 'layer', 'jquery'], function(){
+    var table = layui.table;
+    var form = layui.form;
+    var layer = layui.layer;
+    var $ = layui.jquery;
+
+    var EVAL_API_URL = 'http://localhost:8080/api/evaluations';
+    var APPOINTMENT_API_URL = 'http://localhost:8080/api/appointments';
+    var currentEvalModalIndex;
+
+    // Function to populate Appointment ID dropdown
+    function populateAppointmentDropdown(selectedAppointmentId) {
+        $.ajax({
+            url: APPOINTMENT_API_URL + '/?page=0&size=1000', // Fetch a large number of appointments
+            type: 'GET',
+            success: function(response) {
+                if (response.code === 200 && response.data && response.data.content) {
+                    var $select = $('#appointmentIdSelect');
+                    $select.empty(); // Clear existing options
+                    $select.append('<option value="">请选择或搜索预约ID</option>');
+                    response.data.content.forEach(function(app) {
+                        var interviewTime = app.interviewTime ? new Date(app.interviewTime).toLocaleDateString('zh-CN') : 'N/A';
+                        var optionText = 'ID:' + app.id + ' - ' + app.candidateName + ' (' + interviewTime + ')';
+                        $select.append('<option value="' + app.id + '">' + optionText + '</option>');
+                    });
+                    if (selectedAppointmentId) {
+                        $select.val(selectedAppointmentId);
+                    }
+                    form.render('select', 'evaluationForm'); // Re-render select for Layui
+                } else {
+                    layer.msg('加载预约列表失败', { icon: 2 });
+                }
+            },
+            error: function() {
+                layer.msg('加载预约列表失败 - 网络错误', { icon: 2 });
+            }
+        });
+    }
+
+    // Table Initialization
+    table.render({
+        elem: '#evaluationTable',
+        url: EVAL_API_URL + '/',
+        method: 'GET',
+        page: true,
+        parseData: function(res){
+            return {
+                "code": res.code === 200 ? 0 : res.code,
+                "msg": res.message,
+                "count": res.data.totalElements,
+                "data": res.data.content
+            };
+        },
+        request: { pageName: 'page', limitName: 'size' },
+        response: { statusName: 'code', statusCode: 0, msgName: 'msg', countName: 'count', dataName: 'data' },
+        cols: [[
+            {field: 'id', title: 'ID', width: 80, sort: true, hide: true},
+            {field: 'appointmentId', title: '关联预约ID', width: 120, sort: true},
+            // Consider fetching candidateName for appointmentId here in future if backend supports it
+            {field: 'interviewerComments', title: '评价内容', minWidth: 250},
+            {field: 'rating', title: '评分', width: 80, templet: function(d){ return d.rating + '星'; }},
+            {field: 'result', title: '评价结果', width: 100, templet: function(d){
+                if(d.result === 'Hired') return '<span style="color: green;">录用</span>';
+                if(d.result === 'Rejected') return '<span style="color: red;">淘汰</span>';
+                if(d.result === 'Pending') return '<span style="color: blue;">待定</span>';
+                return d.result;
+            }},
+            {field: 'evaluationTime', title: '评价时间', width: 180, sort: true, templet: function(d){
+                 return d.evaluationTime ? new Date(d.evaluationTime).toLocaleString('zh-CN', { hour12: false }).replace(/\//g, '-') : '';
+            }},
+            {fixed: 'right', title: '操作', toolbar: '#evalTableToolbar', width: 150}
+        ]]
+    });
+
+    // Search Functionality
+    form.on('submit(searchBtnEval)', function(data){
+        table.reload('evaluationTable', {
+            url: EVAL_API_URL + '/',
+            where: {
+                appointmentId: data.field.appointmentIdSearch // Ensure backend supports this query param
+            },
+            page: { curr: 1 }
+        });
+        return false;
+    });
+
+    // Open Add Evaluation Modal
+    $('#addEvaluationBtn').on('click', function(){
+        form.val('evaluationForm', { // Clear form
+            id: '', appointmentId: '', interviewerComments: '', rating: '', result: 'Pending'
+        });
+        populateAppointmentDropdown(null); // Populate and don't pre-select any
+        currentEvalModalIndex = layer.open({
+            type: 1,
+            title: '新增评价',
+            content: $('#evaluationFormModal'),
+            area: ['650px', 'auto'],
+            success: function() { // Re-render form elements after modal is shown
+                form.render(null, 'evaluationForm');
+            },
+            cancel: function(){
+                 $('#evaluationFormModal').hide();
+            }
+        });
+        $('#evaluationFormModal').show();
+    });
+    
+    $('#cancelEvalFormBtn').on('click', function(){
+        if(currentEvalModalIndex) {
+            layer.close(currentEvalModalIndex);
+        }
+        $('#evaluationFormModal').hide();
+    });
+
+
+    // Handle Add/Edit Form Submission
+    form.on('submit(submitEvaluationForm)', function(data){
+        var formData = data.field;
+        var url = EVAL_API_URL + '/';
+        var method = 'POST';
+
+        if(formData.id){ // Edit
+            url = EVAL_API_URL + '/' + formData.id;
+            method = 'PUT';
+        }
+
+        $.ajax({
+            url: url,
+            type: method,
+            contentType: 'application/json',
+            data: JSON.stringify(formData),
+            success: function(response){
+                if(response.code === 200 || response.code === 201 || (method === 'PUT' && response.code === 200)) {
+                    layer.msg(formData.id ? '更新成功' : '新增成功', { icon: 1 });
+                    if(currentEvalModalIndex) layer.close(currentEvalModalIndex);
+                     $('#evaluationFormModal').hide();
+                    table.reload('evaluationTable');
+                } else {
+                    layer.msg(response.message || (formData.id ? '更新失败' : '新增失败'), { icon: 2 });
+                }
+            },
+            error: function(xhr){
+                var errorMsg = formData.id ? '更新失败' : '新增失败';
+                if(xhr.responseJSON && xhr.responseJSON.message) errorMsg += ': ' + xhr.responseJSON.message;
+                layer.msg(errorMsg, { icon: 2 });
+            }
+        });
+        return false;
+    });
+
+    // Table Row Operations (Edit/Delete)
+    table.on('tool(evaluationTableFilter)', function(obj){
+        var data = obj.data;
+        var layEvent = obj.event;
+
+        if(layEvent === 'edit'){
+            form.val('evaluationForm', data); // Pre-fill form
+            populateAppointmentDropdown(data.appointmentId); // Populate and select current appointment
+            currentEvalModalIndex = layer.open({
+                type: 1,
+                title: '编辑评价',
+                content: $('#evaluationFormModal'),
+                area: ['650px', 'auto'],
+                success: function() {
+                    form.val('evaluationForm', data); // Re-apply data after dropdown is populated
+                    form.render(null, 'evaluationForm'); // Re-render form, especially selects
+                     // Make appointmentIdSelect readonly for edit, if desired
+                    // $('#appointmentIdSelect').prop('disabled', true);
+                    // form.render('select', 'evaluationForm');
+                },
+                cancel: function(){
+                    $('#evaluationFormModal').hide();
+                    // $('#appointmentIdSelect').prop('disabled', false); // Re-enable if disabled
+                    // form.render('select', 'evaluationForm');
+                }
+            });
+            $('#evaluationFormModal').show();
+
+        } else if(layEvent === 'del'){
+            layer.confirm('确定要删除这条评价吗？', {icon: 3, title:'提示'}, function(index){
+                $.ajax({
+                    url: EVAL_API_URL + '/' + data.id,
+                    type: 'DELETE',
+                    success: function(response){
+                        if(response.code === 200) {
+                            obj.del();
+                            layer.close(index);
+                            layer.msg('删除成功', { icon: 1 });
+                        } else {
+                            layer.msg(response.message || '删除失败', { icon: 2 });
+                        }
+                    },
+                    error: function(xhr){
+                         var errorMsg = '删除失败';
+                        if(xhr.responseJSON && xhr.responseJSON.message) errorMsg += ': ' + xhr.responseJSON.message;
+                        layer.msg(errorMsg, { icon: 2 });
+                    }
+                });
+            });
+        }
+    });
+});
+</script>
+</body>
+</html>

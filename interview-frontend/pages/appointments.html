@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>面试预约管理</title>
+    <link rel="stylesheet" href="../layui/css/layui.css" media="all">
+    <style>
+        body { padding: 15px; }
+        .layui-form-label { width: 100px; } /* Adjust label width for better layout */
+        .layui-input-block { margin-left: 130px; } /* Adjust input block margin */
+        .layui-form-item .layui-input-inline { width: 200px; } /* Adjust inline input width */
+    </style>
+</head>
+<body>
+    <fieldset class="layui-elem-field layui-field-title" style="margin-top: 20px;">
+        <legend>面试预约管理</legend>
+    </fieldset>
+
+    <!-- Search Form -->
+    <form class="layui-form" lay-filter="searchForm" style="margin-bottom: 10px;">
+        <div class="layui-form-item">
+            <div class="layui-inline">
+                <label class="layui-form-label">候选人姓名</label>
+                <div class="layui-input-inline">
+                    <input type="text" name="candidateNameSearch" placeholder="请输入候选人姓名" autocomplete="off" class="layui-input">
+                </div>
+            </div>
+            <div class="layui-inline">
+                <button class="layui-btn" lay-submit lay-filter="searchBtn">搜索</button>
+                <button type="button" class="layui-btn layui-btn-normal" id="addAppointmentBtn">新增预约</button>
+            </div>
+        </div>
+    </form>
+
+    <!-- Layui Table -->
+    <table id="appointmentTable" lay-filter="appointmentTableFilter"></table>
+
+    <!-- Hidden Modal Form for Add/Edit -->
+    <div id="appointmentFormModal" style="display: none; padding: 20px;">
+        <form class="layui-form" lay-filter="appointmentForm">
+            <input type="hidden" name="id">
+            <div class="layui-form-item">
+                <label class="layui-form-label">候选人姓名</label>
+                <div class="layui-input-block">
+                    <input type="text" name="candidateName" required lay-verify="required" placeholder="请输入候选人姓名" autocomplete="off" class="layui-input">
+                </div>
+            </div>
+            <div class="layui-form-item">
+                <label class="layui-form-label">面试时间</label>
+                <div class="layui-input-block">
+                    <input type="text" name="interviewTime" id="interviewTimePicker" required lay-verify="required" placeholder="请选择面试时间" autocomplete="off" class="layui-input">
+                </div>
+            </div>
+            <div class="layui-form-item">
+                <label class="layui-form-label">面试官</label>
+                <div class="layui-input-block">
+                    <input type="text" name="interviewer" required lay-verify="required" placeholder="请输入面试官姓名" autocomplete="off" class="layui-input">
+                </div>
+            </div>
+            <div class="layui-form-item">
+                <label class="layui-form-label">状态</label>
+                <div class="layui-input-block">
+                    <select name="status" lay-verify="required">
+                        <option value="Scheduled">已安排</option>
+                        <option value="Completed">已完成</option>
+                        <option value="Cancelled">已取消</option>
+                    </select>
+                </div>
+            </div>
+            <div class="layui-form-item layui-form-text">
+                <label class="layui-form-label">备注</label>
+                <div class="layui-input-block">
+                    <textarea name="notes" placeholder="请输入备注 (可选)" class="layui-textarea"></textarea>
+                </div>
+            </div>
+            <div class="layui-form-item" style="margin-top: 20px; text-align: center;">
+                <button class="layui-btn" lay-submit lay-filter="submitAppointmentForm">提交</button>
+                <button type="button" class="layui-btn layui-btn-primary" id="cancelFormBtn">取消</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Table Toolbar Script -->
+    <script type="text/html" id="tableToolbar">
+        <a class="layui-btn layui-btn-xs" lay-event="edit">编辑</a>
+        <a class="layui-btn layui-btn-danger layui-btn-xs" lay-event="del">删除</a>
+    </script>
+
+<script src="../layui/layui.js"></script>
+<script>
+layui.use(['table', 'form', 'layer', 'laydate', 'jquery'], function(){
+    var table = layui.table;
+    var form = layui.form;
+    var layer = layui.layer;
+    var laydate = layui.laydate;
+    var $ = layui.jquery;
+
+    var API_BASE_URL = 'http://localhost:8080/api/appointments';
+
+    // Initialize Date Time Picker
+    laydate.render({
+        elem: '#interviewTimePicker',
+        type: 'datetime'
+    });
+
+    // Table Initialization
+    table.render({
+        elem: '#appointmentTable',
+        url: API_BASE_URL + '/',
+        method: 'GET',
+        page: true,
+        parseData: function(res){ // res 即为原始返回的数据
+            return {
+                "code": res.code === 200 ? 0 : res.code, // Layui table expects 0 for success
+                "msg": res.message,
+                "count": res.data.totalElements,
+                "data": res.data.content
+            };
+        },
+        request: {
+            pageName: 'page', // 页码的参数名称，默认：page
+            limitName: 'size' // 每页数据量的参数名，默认：limit
+        },
+        response: {
+             statusName: 'code', //规定数据状态的字段名称，默认：code
+             statusCode: 0, //规定成功的状态码，默认：0
+             msgName: 'msg', //规定状态信息的字段名称，默认：msg
+             countName: 'count', //规定数据总数的字段名称，默认：count
+             dataName: 'data' //规定数据列表的字段名称，默认：data
+        },
+        cols: [[
+            {field: 'id', title: 'ID', width: 80, sort: true, hide: true},
+            {field: 'candidateName', title: '候选人姓名', width: 150},
+            {field: 'interviewTime', title: '面试时间', width: 180, sort: true, templet: function(d){
+                return d.interviewTime ? new Date(d.interviewTime).toLocaleString('zh-CN', { hour12: false }).replace(/\//g, '-') : '';
+            }},
+            {field: 'interviewer', title: '面试官', width: 120},
+            {field: 'status', title: '状态', width: 100, templet: function(d){
+                if(d.status === 'Scheduled') return '<span style="color: blue;">已安排</span>';
+                if(d.status === 'Completed') return '<span style="color: green;">已完成</span>';
+                if(d.status === 'Cancelled') return '<span style="color: red;">已取消</span>';
+                return d.status;
+            }},
+            {field: 'notes', title: '备注', minWidth: 200},
+            {fixed: 'right', title: '操作', toolbar: '#tableToolbar', width: 150}
+        ]],
+        done: function() {
+            // Fix for laydate not re-rendering correctly inside a modal that's re-used.
+            // If opening a new form, ensure laydate is re-rendered if necessary.
+        }
+    });
+
+    // Search Functionality
+    form.on('submit(searchBtn)', function(data){
+        table.reload('appointmentTable', {
+            url: API_BASE_URL + '/',
+            where: {
+                candidateName: data.field.candidateNameSearch
+            },
+            page: {
+                curr: 1 // Reset to first page
+            }
+        });
+        return false; // Prevent default form submission
+    });
+
+    var currentModalIndex; // To store the index of the currently open modal
+
+    // Open Add Appointment Modal
+    $('#addAppointmentBtn').on('click', function(){
+        form.val('appointmentForm', { // Clear form
+            id: '', candidateName: '', interviewTime: '', interviewer: '', status: 'Scheduled', notes: ''
+        });
+        // Re-render date picker for add form
+        laydate.render({ elem: '#interviewTimePicker', type: 'datetime', value: null });
+
+        currentModalIndex = layer.open({
+            type: 1,
+            title: '新增预约',
+            content: $('#appointmentFormModal'),
+            area: ['600px', 'auto'], // Adjusted width
+            cancel: function(){
+                 $('#appointmentFormModal').hide(); // Hide on close
+            }
+        });
+        $('#appointmentFormModal').show();
+    });
+    
+    $('#cancelFormBtn').on('click', function(){
+        if(currentModalIndex) {
+            layer.close(currentModalIndex);
+        }
+        $('#appointmentFormModal').hide();
+    });
+
+
+    // Handle Add/Edit Form Submission
+    form.on('submit(submitAppointmentForm)', function(data){
+        var formData = data.field;
+        var url = API_BASE_URL + '/';
+        var method = 'POST';
+
+        if(formData.id){ // If ID exists, it's an edit
+            url = API_BASE_URL + '/' + formData.id;
+            method = 'PUT';
+        }
+        
+        // Convert to ISO string if needed, or ensure backend handles local datetime string
+        // The backend expects LocalDateTime, Spring Boot usually handles standard ISO formats well.
+        // If interviewTime is from laydate, it might be in "YYYY-MM-DD HH:mm:ss" format.
+        // Spring Boot should parse this. If not, convert to ISO:
+        // if (formData.interviewTime) {
+        //    formData.interviewTime = new Date(formData.interviewTime).toISOString();
+        // }
+
+
+        $.ajax({
+            url: url,
+            type: method,
+            contentType: 'application/json',
+            data: JSON.stringify(formData),
+            success: function(response){
+                if(response.code === 200 || response.code === 201 || (method === 'PUT' && response.code === 200) ) { // 201 for POST, 200 for PUT
+                    layer.msg(formData.id ? '更新成功' : '新增成功', { icon: 1 });
+                    if(currentModalIndex) layer.close(currentModalIndex);
+                    $('#appointmentFormModal').hide();
+                    table.reload('appointmentTable');
+                } else {
+                    layer.msg(response.message || (formData.id ? '更新失败' : '新增失败'), { icon: 2 });
+                }
+            },
+            error: function(xhr){
+                var errorMsg = formData.id ? '更新失败' : '新增失败';
+                if(xhr.responseJSON && xhr.responseJSON.message) {
+                    errorMsg += ': ' + xhr.responseJSON.message;
+                }
+                layer.msg(errorMsg, { icon: 2 });
+            }
+        });
+        return false; // Prevent default form submission
+    });
+
+    // Table Row Operations (Edit/Delete)
+    table.on('tool(appointmentTableFilter)', function(obj){
+        var data = obj.data; // Get current row data
+        var layEvent = obj.event; // Get lay-event value
+
+        if(layEvent === 'edit'){
+            // Pre-fill form
+            form.val('appointmentForm', {
+                id: data.id,
+                candidateName: data.candidateName,
+                interviewTime: data.interviewTime ? new Date(data.interviewTime).toLocaleString('sv-SE', { hour12: false }).replace(' ', 'T').substring(0,16) : '', // Format for datetime-local or laydate
+                interviewer: data.interviewer,
+                status: data.status,
+                notes: data.notes
+            });
+            // Re-render date picker with value for edit form
+             laydate.render({ elem: '#interviewTimePicker', type: 'datetime', value: data.interviewTime ? new Date(data.interviewTime) : null });
+
+
+            currentModalIndex = layer.open({
+                type: 1,
+                title: '编辑预约',
+                content: $('#appointmentFormModal'),
+                area: ['600px', 'auto'],
+                 cancel: function(){
+                    $('#appointmentFormModal').hide(); // Hide on close
+                 }
+            });
+            $('#appointmentFormModal').show();
+
+        } else if(layEvent === 'del'){
+            layer.confirm('确定要删除这条预约吗？', {icon: 3, title:'提示'}, function(index){
+                $.ajax({
+                    url: API_BASE_URL + '/' + data.id,
+                    type: 'DELETE',
+                    success: function(response){
+                         if(response.code === 200) {
+                            obj.del(); // Delete row from table
+                            layer.close(index);
+                            layer.msg('删除成功', { icon: 1 });
+                        } else {
+                            layer.msg(response.message || '删除失败', { icon: 2 });
+                        }
+                    },
+                    error: function(xhr){
+                        var errorMsg = '删除失败';
+                        if(xhr.responseJSON && xhr.responseJSON.message) {
+                            errorMsg += ': ' + xhr.responseJSON.message;
+                        }
+                        layer.msg(errorMsg, { icon: 2 });
+                    }
+                });
+            });
+        }
+    });
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>面试管理系统</title>
+    <link rel="stylesheet" href="./layui/css/layui.css" media="all">
+    <style>
+        /* Basic styling for layout */
+        .layui-header {
+            background-color: #393D49 !important; /* Darker header */
+            color: #fff;
+        }
+        .layui-layout-admin .layui-logo {
+            color: #fff;
+        }
+        .layui-layout-admin .layui-nav .layui-nav-item a {
+            color: #fff;
+        }
+        .layui-layout-admin .layui-nav .layui-nav-item .layui-nav-child dd.layui-this a,
+        .layui-layout-admin .layui-nav .layui-nav-item.layui-this a {
+            background-color: #009688; /* Layui green for active items */
+        }
+        .content-iframe {
+            width: 100%;
+            height: calc(100vh - 60px); /* Adjust height considering header */
+            border: none;
+        }
+    </style>
+</head>
+<body class="layui-layout-body">
+<div class="layui-layout layui-layout-admin">
+    <div class="layui-header">
+        <div class="layui-logo">面试管理系统</div>
+        <!-- Header navigation (optional) -->
+        <ul class="layui-nav layui-layout-right">
+            <li class="layui-nav-item">
+                <a href="javascript:;">
+                    <img src="http://t.cn/RCzsdCq" class="layui-nav-img">
+                    管理员
+                </a>
+                <dl class="layui-nav-child">
+                    <dd><a href="">基本资料</a></dd>
+                    <dd><a href="">安全设置</a></dd>
+                </dl>
+            </li>
+            <li class="layui-nav-item"><a href="">退出</a></li>
+        </ul>
+    </div>
+
+    <div class="layui-side layui-bg-black">
+        <div class="layui-side-scroll">
+            <!-- Left navigation -->
+            <ul class="layui-nav layui-nav-tree" lay-filter="test">
+                <li class="layui-nav-item layui-nav-itemed">
+                    <a class="" href="javascript:;">管理菜单</a>
+                    <dl class="layui-nav-child">
+                        <dd><a href="javascript:void(0);" data-url="pages/appointments.html" class="site-demo-active" data-type="tabAdd">面试预约管理</a></dd>
+                        <dd><a href="javascript:void(0);" data-url="pages/evaluations.html" class="site-demo-active" data-type="tabAdd">面试评价管理</a></dd>
+                    </dl>
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="layui-body">
+        <!-- Content area - will be replaced by tabs -->
+         <div class="layui-tab" lay-allowClose="true" lay-filter="contentTabs">
+            <ul class="layui-tab-title">
+                <li class="layui-this" lay-id="0">首页</li>
+            </ul>
+            <div class.layui-tab-content>
+                <div class="layui-tab-item layui-show">
+                    <iframe src="about:blank" frameborder="0" class="content-iframe" name="content-iframe-0"></iframe>
+                    <!-- Default content, or welcome page for "首页" -->
+                    <div style="padding: 15px;">欢迎使用面试管理系统! 请从左侧菜单选择功能。</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="layui-footer">
+        <!-- Footer content -->
+        © layui.com - 底部固定区域
+    </div>
+</div>
+<script src="./layui/layui.js"></script>
+<script>
+    layui.use(['element', 'layer', 'util'], function () {
+        var element = layui.element;
+        var layer = layui.layer;
+        var util = layui.util;
+        var $ = layui.jquery;
+
+        // Left navigation menu item click to open tab
+        $('.site-demo-active').on('click', function () {
+            var dataurl = $(this).attr("data-url");
+            var title = $(this).text();
+            var newTabId = 'tab-' + dataurl.replace(/[\.\/]/g, '-'); // Create a unique ID for the tab
+
+            // Check if tab already exists
+            var existingTabs = $('.layui-tab-title li[lay-id="' + newTabId + '"]');
+            if (existingTabs.length > 0) {
+                element.tabChange('contentTabs', newTabId); // Switch to existing tab
+            } else {
+                // Add new tab
+                element.tabAdd('contentTabs', {
+                    title: title,
+                    content: '<iframe data-frameid="'+newTabId+'" scrolling="auto" frameborder="0" src="' + dataurl + '" style="width:100%;height:calc(100vh - 105px);"></iframe>', // Adjust height if needed
+                    id: newTabId
+                });
+                element.tabChange('contentTabs', newTabId); // Switch to new tab
+            }
+        });
+        
+        // Default tab content
+        // You might want to load a welcome page or dashboard here by default
+        // For now, the first tab "首页" has simple text content.
+        // If you want the first tab to also be an iframe:
+        // element.tabAdd('contentTabs', {
+        //   title: '首页',
+        //   content: '<iframe src="pages/dashboard.html" frameborder="0" class="content-iframe" name="content-iframe-0"></iframe>',
+        //   id: '0' 
+        // });
+        // element.tabChange('contentTabs', '0');
+
+
+        // Fix for iframe height when tab is shown
+        element.on('tab(contentTabs)', function(data){
+            // var iframe = $(data.elem).find('.layui-tab-item.layui-show iframe');
+            // if(iframe.length > 0){
+            //    // You might need to resize or reload the iframe content if it doesn't fit well
+            // }
+        });
+
+    });
+</script>
+</body>
+</html>
