@@ -20,6 +20,7 @@
         CHARACTER SET utf8mb4 
         COLLATE utf8mb4_unicode_ci;
         ```
+        The application is configured to automatically create the necessary tables (`interview_appointment`, `interview_evaluation`) on startup by executing the `schema.sql` file located in `interview-backend/src/main/resources/`. This is enabled by `spring.datasource.initialization-mode=always` in the `application.properties` file.
 3.  **配置数据库连接:**
     *   打开后端项目中的配置文件: `interview-backend/src/main/resources/application.properties`。
     *   修改以下属性以匹配您的 MySQL 设置：
@@ -107,6 +108,22 @@
     ```
     *   将 `/path/to/your/interview-frontend` 替换为实际路径。
     *   重启 Nginx 服务使配置生效。
+
+**Note on API Requests:**
+The frontend is configured to make API requests to relative paths (e.g., `/api/appointments`). For this to work correctly:
+*   When opening `index.html` directly in the browser (Option 1), this assumes the browser can make requests to the backend (e.g., `http://localhost:8080/api/...`) without CORS issues, or the backend has CORS configured appropriately. (Note: CORS is not explicitly configured in this project).
+*   When using a web server (Option 2), the web server should be configured to proxy requests starting with `/api/` to the backend service (e.g., `http://localhost:8080`).
+For example, if using Nginx, your location block for `/api/` (if backend is on port 8080 and frontend on another, or same with proxy) would be:
+```nginx
+location /api/ {
+    proxy_pass http://localhost:8080/api/; # Note the trailing slash if your backend expects /api/
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+}
+```
+This ensures that frontend requests like `/api/appointments` are correctly routed to the backend service. If your backend is accessible at `http://localhost:8080` and you want to proxy all requests starting with `/api` to it, the `proxy_pass` directive should correctly point to the backend's base URL for the API.
 
 ## 4. 访问系统 (Accessing the System)
 

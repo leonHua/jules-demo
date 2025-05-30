@@ -100,14 +100,14 @@ layui.use(['table', 'form', 'layer', 'jquery'], function(){
     var layer = layui.layer;
     var $ = layui.jquery;
 
-    var EVAL_API_URL = 'http://localhost:8080/api/evaluations';
-    var APPOINTMENT_API_URL = 'http://localhost:8080/api/appointments';
+    var EVAL_API_URL = '/api/evaluations'; // Changed to relative URL
+    var APPOINTMENT_API_URL = '/api/appointments'; // Changed to relative URL
     var currentEvalModalIndex;
 
     // Function to populate Appointment ID dropdown
     function populateAppointmentDropdown(selectedAppointmentId) {
         $.ajax({
-            url: APPOINTMENT_API_URL + '/?page=0&size=1000', // Fetch a large number of appointments
+            url: APPOINTMENT_API_URL + '/?page=0&size=1000', // Uses updated relative APPOINTMENT_API_URL
             type: 'GET',
             success: function(response) {
                 if (response.code === 200 && response.data && response.data.content) {
@@ -136,7 +136,7 @@ layui.use(['table', 'form', 'layer', 'jquery'], function(){
     // Table Initialization
     table.render({
         elem: '#evaluationTable',
-        url: EVAL_API_URL + '/',
+        url: EVAL_API_URL + '/', // Uses updated relative EVAL_API_URL
         method: 'GET',
         page: true,
         parseData: function(res){
@@ -171,7 +171,7 @@ layui.use(['table', 'form', 'layer', 'jquery'], function(){
     // Search Functionality
     form.on('submit(searchBtnEval)', function(data){
         table.reload('evaluationTable', {
-            url: EVAL_API_URL + '/',
+            url: EVAL_API_URL + '/', // Uses updated relative EVAL_API_URL
             where: {
                 appointmentId: data.field.appointmentIdSearch // Ensure backend supports this query param
             },

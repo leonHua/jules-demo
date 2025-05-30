@@ -95,7 +95,7 @@ layui.use(['table', 'form', 'layer', 'laydate', 'jquery'], function(){
     var laydate = layui.laydate;
     var $ = layui.jquery;
 
-    var API_BASE_URL = 'http://localhost:8080/api/appointments';
+    var API_BASE_URL = '/api/appointments'; // Changed to relative URL
 
     // Initialize Date Time Picker
     laydate.render({
@@ -106,7 +106,7 @@ layui.use(['table', 'form', 'layer', 'laydate', 'jquery'], function(){
     // Table Initialization
     table.render({
         elem: '#appointmentTable',
-        url: API_BASE_URL + '/',
+        url: API_BASE_URL + '/', // Uses updated relative API_BASE_URL
         method: 'GET',
         page: true,
         parseData: function(res){ // res 即为原始返回的数据
@@ -153,7 +153,7 @@ layui.use(['table', 'form', 'layer', 'laydate', 'jquery'], function(){
     // Search Functionality
     form.on('submit(searchBtn)', function(data){
         table.reload('appointmentTable', {
-            url: API_BASE_URL + '/',
+            url: API_BASE_URL + '/', // Uses updated relative API_BASE_URL
             where: {
                 candidateName: data.field.candidateNameSearch
             },
