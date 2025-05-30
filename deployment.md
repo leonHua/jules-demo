@@ -20,7 +20,7 @@
         CHARACTER SET utf8mb4 
         COLLATE utf8mb4_unicode_ci;
         ```
-        The application is configured to automatically create the necessary tables (`interview_appointment`, `interview_evaluation`) on startup by executing the `schema.sql` file located in `interview-backend/src/main/resources/`. This is enabled by `spring.datasource.initialization-mode=always` in the `application.properties` file.
+        The application is configured to automatically create the necessary tables (`interview_appointment`, `interview_evaluation`) on startup by executing the `schema.sql` file located in `interview-backend/src/main/resources/`. This is enabled by `spring.datasource.initialization-mode=always` in the `application.properties` file. Additionally, if a `data.sql` file is present in the same directory, it will be executed after `schema.sql` to populate the database with initial/test data. This project includes a `data.sql` file with 30 sample records for each table.
 3.  **配置数据库连接:**
     *   打开后端项目中的配置文件: `interview-backend/src/main/resources/application.properties`。
     *   修改以下属性以匹配您的 MySQL 设置：
